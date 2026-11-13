@@ -5,7 +5,7 @@ import pandas as pd
 # Configuration
 # =====================================================
 
-EXCEL_FILE = "Merit_Badges_by_Scout.xlsx"
+CSV_FILE = "Merit_Badges_by_Scout.csv"
 TEMPLATE_PDF = "merit_badge_pocket_cert_template.pdf"
 OUTPUT_PDF = "Merit_Badge_Certificates.pdf"
 
@@ -54,7 +54,7 @@ print(f"Loaded {len(field_positions)} field positions")
 # Read spreadsheet
 # =====================================================
 
-df = pd.read_excel(EXCEL_FILE)
+df = pd.read_csv(CSV_FILE, encoding="utf-8")
 
 # Preserve spreadsheet order exactly
 # No sorting
