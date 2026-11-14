@@ -5,7 +5,7 @@ This script automates the generation of physical **Merit Badge Pocket Certificat
 #### **Key Features & Process Flow:**
 1. **Environment & Directory Setup:** Installs `pymupdf` (for PDF manipulation) and navigates to the shared Google Drive folder containing the template and assets.
 2. **Template Coordinate Extraction:** Opens the template PDF (`merit_badge_pocket_cert_template.pdf`) and dynamically extracts the layout coordinates (bounding boxes) for form fields (e.g., *Name*, *Badge*, *Date*, *Unit*, *Council*, and *Unit Leader* signature) based on their slot numbers (1 through 8 per page).
-3. **Data Loading:** Loads the Scout records from the specified Excel spreadsheet (`Merit_Badges_by_Scout.xlsx`) in their exact original order.
+3. **Data Loading:** Loads the Scout records from the specified csv-file (`Merit_Badges_by_Scout.csv`) in their exact original order.
 4. **Batch PDF Generation:**
    - Groups the records into batches of 8 per page to fit the physical card printing template.
    - Generates a multi-page PDF document.

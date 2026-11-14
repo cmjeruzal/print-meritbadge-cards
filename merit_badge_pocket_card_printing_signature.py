@@ -16,9 +16,11 @@ RECORDS_PER_PAGE = 8
 UNIT = "Your Unit #"
 COUNCIL = "Your Council Name"
 
-# Printer calibration
+# Printer calibration (points; 72 pt = 1 inch)
+# Positive Y moves content DOWN the page.
 X_OFFSET = 0
-Y_OFFSET = 3
+Y_OFFSET_TOP = -6     # cards in the top half of the page
+Y_OFFSET_BOTTOM = 3   # cards in the bottom half of the page
 
 # Signature sizing adjustments
 SIGNATURE_X_PADDING = 60
@@ -60,8 +62,36 @@ df = pd.read_csv(CSV_FILE, encoding="utf-8")
 # No sorting
 
 # =====================================================
-# Helper Function
+# Helper Functions
 # =====================================================
+
+def y_offset_for(rect):
+    """Pick the printer Y offset based on which row the field is in."""
+    if rect.y0 < page_height / 2:
+        return Y_OFFSET_TOP
+    return Y_OFFSET_BOTTOM
+
+
+BLANK_STRINGS = {"", "na", "n/a", "nan", "none", "null", "nat"}
+
+
+def clean(value):
+    """Return the value as a stripped string, or '' if it is null/NA."""
+    if pd.isna(value):
+        return ""
+    text = str(value).strip()
+    if text.lower() in BLANK_STRINGS:
+        return ""
+    return text
+
+
+def is_blank_record(row):
+    """True when Scout Name, Merit Badge and Date Earned are all null/NA."""
+    return all(
+        clean(row[col]) == ""
+        for col in ("Scout Name", "Merit Badge", "Date Earned")
+    )
+
 
 def insert_fitted_centered_text(
     page,
@@ -117,17 +147,25 @@ for start in range(0, len(df), RECORDS_PER_PAGE):
 
     for slot, (_, row) in enumerate(batch.iterrows(), start=1):
 
-        earned_date = pd.to_datetime(row["Date Earned"])
+        # Blank record: leave this card slot completely empty
+        # (no text, no unit/council, no signature).
+        if is_blank_record(row):
+            continue
 
-        date_text = (
-            f"{earned_date.month}/"
-            f"{earned_date.day}/"
-            f"{earned_date.year}"
-        )
+        earned_date = pd.to_datetime(row["Date Earned"], errors="coerce")
+
+        if pd.isna(earned_date):
+            date_text = ""
+        else:
+            date_text = (
+                f"{earned_date.month}/"
+                f"{earned_date.day}/"
+                f"{earned_date.year}"
+            )
 
         values = {
-            f"Name {slot}": str(row["Scout Name"]),
-            f"Badge {slot}": str(row["Merit Badge"]),
+            f"Name {slot}": clean(row["Scout Name"]),
+            f"Badge {slot}": clean(row["Merit Badge"]),
             f"Date {slot}": date_text,
             f"Unit {slot}": UNIT,
             f"Council {slot}": COUNCIL,
@@ -143,12 +181,13 @@ for start in range(0, len(df), RECORDS_PER_PAGE):
                 continue
 
             rect = field_positions[field_name]
+            y_off = y_offset_for(rect)
 
             rect = pymupdf.Rect(
                 rect.x0 + X_OFFSET,
-                rect.y0 + Y_OFFSET,
+                rect.y0 + y_off,
                 rect.x1 + X_OFFSET,
-                rect.y1 + Y_OFFSET,
+                rect.y1 + y_off,
             )
 
             if field_name.startswith("Badge"):
@@ -192,12 +231,13 @@ for start in range(0, len(df), RECORDS_PER_PAGE):
         if signature_field in field_positions:
 
             sig_rect = field_positions[signature_field]
+            y_off = y_offset_for(sig_rect)
 
             sig_rect = pymupdf.Rect(
                 sig_rect.x0 + X_OFFSET - SIGNATURE_X_PADDING,
-                sig_rect.y0 + Y_OFFSET - SIGNATURE_Y_PADDING,
+                sig_rect.y0 + y_off - SIGNATURE_Y_PADDING,
                 sig_rect.x1 + X_OFFSET + SIGNATURE_X_PADDING,
-                sig_rect.y1 + Y_OFFSET + SIGNATURE_Y_PADDING,
+                sig_rect.y1 + y_off + SIGNATURE_Y_PADDING,
             )
 
             page.insert_image(
@@ -220,7 +260,9 @@ output_doc.close()
 
 print()
 print("=" * 50)
-print(f"Certificates : {len(df)}")
+blank_count = int(df.apply(is_blank_record, axis=1).sum())
+print(f"Certificates : {len(df) - blank_count}")
+print(f"Blank slots  : {blank_count}")
 print(f"Pages        : {(len(df) + 7) // 8}")
 print(f"Output       : {OUTPUT_PDF}")
 print("=" * 50)
